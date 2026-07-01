@@ -171,7 +171,7 @@ Use spacing tokens only: spacing/2 (8px), spacing/3 (12px), spacing/4 (16px), sp
 - Category labels: small + uppercase + letter-spacing wide (DM Mono)
 - Titles: semibold, tight tracking
 - Body: regular, --content-secondary
-- Metadata: small, --content-muted (never body copy — see contrast flag below)
+- Metadata: small, --content-muted (never body copy — see contrast flag in Section 10)
 
 ### Touch targets
 Minimum 44px height for all interactive elements.
@@ -205,34 +205,83 @@ Get started = filled primary button (--action-primary)
 
 ## 9. Screens to Build
 
-In this order:
-1. Landing page (marketing, with top nav)
-2. Log in page
-3. Dashboard / Ambient state
-4. Detect state
-5. Activate state
-6. Focus state
-7. Reorient state
-8. Clear state
-9. Profile page
+Build in this order. Do not skip any screen.
 
-### Log in page spec
-- Email field, password field
+### 1. Landing page
+- Top nav with: How it works · Use cases · Research · Pricing | Log in · Get started
+- Hero: tagline "Most days, you've got this. On the days you don't, Q does."
+- How it works section: four states as visual flow (Detect → Activate → Focus → Reorient)
+- CTA section
+- Footer (minimal)
+
+### 2. Log in page
+- Email field with hint: sam.roy@email.com
+- Password field
 - Primary "Log in" button
 - "Forgot password?" ghost link (no destination needed)
-- Demo credentials shown subtly on screen: "Demo: sam.roy@email.com / sam"
-- On correct credentials → navigate to Dashboard (Ambient)
+- Demo credentials shown subtly: "Demo: sam.roy@email.com / sam"
+- On correct credentials → navigate to Dashboard (Ambient state)
 - On wrong credentials → inline error message, no alert()
 - Consistent with app visual language
 
-### Profile page spec
+### 3. Dashboard / Ambient state
+- Top bar: Q logo left · search centre · notification icon · Sam avatar (S) right
+- Left sidebar: icon nav, six states, active state highlighted
+- Day status card: "Your day looks manageable." + progress bar at 40%
+- Today's focus pills (non-actionable display)
+- Stat row: Tasks · Meetings · Focus time · Alerts held
+- "What Q is watching" card at bottom
+
+### 4. Detect state
+- Floating pill: "Q has a suggestion"
+- Rotating conic-gradient halo animation around pill (--action-primary, 3s ease infinite)
+- Signal line in DM Mono uppercase: "SIGNAL — 4 TASK SWITCHES IN 20 MINUTES"
+- Heading: "Things have shifted."
+- Body: "You've switched tasks 4 times in 20 minutes. Want help deciding what matters right now?"
+- Two stacked buttons max-width 340px:
+  Primary "Yes, help me focus" → Activate
+  Ghost "I'm fine, thanks" → Ambient
+
+### 5. Activate state
+- Label in DM Mono uppercase: "ACTIVATE — ONE TASK SURFACED"
+- Rationale tags ABOVE task title: "Urgent" · "High impact" · "Due 5pm · from your manager"
+- Task title: "Review Q3 proposal draft"
+- Context: "Sarah flagged this 2 hours ago. Client presentation is at 5pm today."
+- Primary "Start task" → Focus
+- Secondary "View all tasks" → collapsible task list below
+- Italic muted below: "12 other tasks are waiting. They can."
+
+### 6. Focus state
+- Centred layout, maximum whitespace
+- Task title only at large size
+- Progress bar: 25% → 50% → 75% → 100% on button click, calm copy updates each step
+- DM Mono pill: "4 notifications held"
+- "Disruption arrived" button → Reorient
+- "Exit focus mode" text link → Clear
+
+### 7. Reorient state
+- Current task visible at 45% opacity above prompt
+- Interruption source label: "New message from Sarah"
+- Q recalculation note (left border --action-primary, subtle blue tint background):
+  "Q has recalculated. Your current task is still the priority."
+- Primary "Continue current task" → Focus
+- Ghost "Switch to new priority" → Activate
+
+### 8. Clear state
+- Three lines only, centred, no buttons, no cards
+- Background: var(--surface-default) pure black
+- "You're clear."
+- "Nothing needs you right now."
+- "Q will let you know when that changes."
+
+### 9. Profile page
 - Avatar: "S" initial, --color-navy-700 fill, --action-primary border
 - Name: Sam Roy
 - Role: Account Manager · SaaS · 18 client accounts
 - Username: @sam.roy
 - Editable fields: Name, Username, Role, Company size, Tools used
 - Three preference toggles: Automatic detection · Hold notifications · Transparent reasoning
-- Token reference grid at bottom
+- Token reference grid at bottom (colour swatches from token system)
 
 ---
 
@@ -332,7 +381,7 @@ Q_App-Priority-under-pressure/
 ├── q-app/
 └── .claude/
     └── commands/
-        ├── extract-from-figma.md
+        ├── extract-tokens.md        ← reads Figma file variables, not a URL
         ├── build-token-system.md
         ├── generate-components.md
         ├── build-web-app.md
@@ -347,15 +396,38 @@ Q_App-Priority-under-pressure/
 git clone https://github.com/simplyfay/Q_App-Priority-under-pressure.git
 cd Q_App-Priority-under-pressure
 claude
+```
 
-# Inside Claude Code
-/extract-from-figma https://www.figma.com/design/aWwqnVauFDa3e2Yawbk3Af/Q---Priority-under-pressure
+Inside Claude Code, run in this order:
+
+```
+/extract-tokens https://www.figma.com/design/aWwqnVauFDa3e2Yawbk3Af/Q---Priority-under-pressure
+```
+Reads Figma file variables (primitives → semantic → component). NOT a webpage scrape.
+Outputs: tokens/raw.json
+
+```
 /build-token-system
-/generate-components
-/build-web-app
-/push-to-figma https://www.figma.com/design/aWwqnVauFDa3e2Yawbk3Af/Q---Priority-under-pressure
+```
+Verifies derivation chain, runs WCAG contrast audit, outputs tokens/system/ files.
 
-# Second terminal after /build-web-app
+```
+/generate-components
+```
+Scaffolds React components from token system and Figma component structures.
+
+```
+/build-web-app
+```
+Builds the full Q React app across all nine screens.
+
+```
+/push-to-figma https://www.figma.com/design/aWwqnVauFDa3e2Yawbk3Af/Q---Priority-under-pressure
+```
+Publishes token system and components back to the Q Figma file.
+
+```bash
+# Second terminal after /build-web-app completes
 cd q-app && npm install && npm run dev
 # Open http://localhost:5173
 ```
@@ -365,7 +437,7 @@ cd q-app && npm install && npm run dev
 ## 14. MCP Setup
 
 ### Connected servers
-- Figma MCP: http://127.0.0.1:3845/mcp (HTTP) — connected
+- Figma MCP: http://127.0.0.1:3845/mcp (HTTP) — connected (READ-ONLY)
 - Figma plugin (write access): installed from claude-plugins-official
   Skills: figma-generate-library, figma-generate-design, figma-code-connect,
   figma-use-slides, figma-use-figjam, figma-generate-diagram, figma-create-new-file, figma-use
@@ -432,3 +504,4 @@ Always load figma-use skill before any use_figma call.
 | Window control tokens decorative only | Q is a web app; macOS dots only appear in presentation frame mockups |
 | Sam Roy not Jordan | Persona renamed — enforced everywhere including CLAUDE.md |
 | Minimalism over ambition | Functionality and clarity first; broken ambitious design rejected |
+| /extract-tokens reads Figma not a URL | Token source is the Q Figma file, not a scraped webpage |
