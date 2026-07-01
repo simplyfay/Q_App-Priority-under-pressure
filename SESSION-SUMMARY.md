@@ -295,7 +295,7 @@ Never hardcode hex values. Always use CSS custom properties: var(--token-name).
 Primitives → Semantic → Component
 Example: #457B9D → --color-slate-500 → --action-primary → button background
 
-### Primitive tokens (58 total)
+### Primitive tokens (68 total — verify exact count from Figma file)
 - Color: 21 tokens
 - Typography: 25 tokens (1 family, 10 sizes, 5 weights, 5 tracking, 4 leading)
 - Spacing: 12 tokens (named with numbers: 1, 2, 3, 4, 5, 6, 8, 10, 12, 16, 20, 24)
@@ -303,7 +303,7 @@ Example: #457B9D → --color-slate-500 → --action-primary → button backgroun
 - Shadow: 4 tokens (sm, md, lg, glow)
 
 ### Semantic tokens (29 total)
-- surface: 5 — default (#000), subtle (#0A0A0A), raised (#1A1A1A), elevated (#2A2A2A), overlay (#3A3A3A)
+- surface: 5 — light defaults: default (#FFF), subtle (#FAFAFA), raised (#F4F4F4), elevated (#E8E8E8), overlay (#D4D4D4) · dark values available via toggle
 - content: 5 — primary (#FFF), secondary (#BCBBC0), muted (#6B6B6B), inverse (#000), accent (#A8C4D8)
 - line: 3 — default (#2A2A2A), subtle (#1A1A1A), strong (#3A3A3A)
 - action: 7 — primary (#457B9D), primary-hover (#A8C4D8), primary-text (#FFF), secondary (#2A2A2A), secondary-hover (#3A3A3A), secondary-text (#D4D4D4), destructive (#7A3B1E)

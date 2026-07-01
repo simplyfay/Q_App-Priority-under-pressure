@@ -1,94 +1,178 @@
-Convert raw extracted tokens into a structured design token system with proper naming conventions and light/dark modes.
+# /build-token-system
 
-Reads from: `tokens/raw.json`
-Writes to: `tokens/system/` directory
+Convert `tokens/raw.json` into a verified, structured token system with light-first CSS output.
 
-## Architecture
+**Reads:** `tokens/raw.json`
+**Writes:** `tokens/system/primitives.json`, `tokens/system/semantic.json`, `tokens/system/tokens.css`, `tokens/system/token-conventions.md`
 
-Three-tier system:
+---
 
-**Tier 1 — Primitives** (`tokens/system/primitives.json`)
-Named raw values. No semantic meaning. Source of truth.
+## Mode strategy
 
-- If `raw.json` has named palettes (e.g. `arctic`, `indigo`) → mirror those names directly into primitives.
-- If `raw.json` has only unnamed hex values → assign the closest standard scale step (50/100/.../900).
-- Include typography, spacing, radius, and shadow as separate top-level keys.
+Q is light-first. Light mode is the default experience (`：root`).
+Dark mode is an optional toggle (`[data-theme="dark"]`).
+This is not negotiable — do not invert this.
 
-**Tier 2 — Semantic tokens** (`tokens/system/semantic.json`)
-Reference primitives via `{color.name.step}` syntax. Carry meaning. Define light/dark modes as sibling keys.
+---
+
+## Step 1 — Read and validate
+
+Read `tokens/raw.json`. Confirm it was extracted from Figma (not a webpage).
+If `extractionMethod` is not `figma-variables`, stop and tell the user to run `/extract-tokens` first.
+
+Count and report:
+- Primitive tokens by group (color, spacing, radius, font, shadow)
+- Semantic tokens by group (surface, content, line, action, state, ambient)
+- Both light and dark values present for each semantic token
+
+---
+
+## Step 2 — Build primitives.json
+
+One entry per primitive token. Raw values only. No semantic meaning.
 
 ```json
 {
   "color": {
-    "background": {
-      "default": {
-        "light": "{color.neutral.0}",
-        "dark": "{color.neutral.950}"
-      },
-      "subtle": { "light": "{color.neutral.50}", "dark": "{color.neutral.900}" }
-    },
-    "text": {
-      "default": {
-        "light": "{color.neutral.900}",
-        "dark": "{color.neutral.50}"
-      },
-      "muted": { "light": "{color.neutral.500}", "dark": "{color.neutral.400}" }
-    },
-    "interactive": {
-      "primary": { "light": "{color.brand.500}", "dark": "{color.brand.700}" },
-      "primary-hover": {
-        "light": "{color.brand.400}",
-        "dark": "{color.brand.400}"
-      }
-    }
+    "black": { "100": "#000000" },
+    "gray": { "950": "#0A0A0A", "900": "#111111", "800": "#1A1A1A" },
+    "slate": { "500": "#457B9D", "300": "#A8C4D8" }
+  },
+  "spacing": { "1": 4, "2": 8, "3": 12, "4": 16, "6": 24, "8": 32 },
+  "radius": { "none": 0, "sm": 4, "md": 6, "lg": 8, "xl": 12, "2xl": 16, "full": 9999 },
+  "shadow": { "sm": "0 1px 2px rgba(0,0,0,0.4)", "md": "0 2px 8px rgba(0,0,0,0.5)" },
+  "typography": {
+    "family": { "body": "DM Sans", "mono": "DM Mono" },
+    "size": { "xs": 11, "sm": 12, "base": 14, "md": 15, "lg": 16, "xl": 18, "2xl": 20, "3xl": 24 },
+    "weight": { "light": 300, "regular": 400, "medium": 500, "semibold": 600, "bold": 700 }
   }
 }
 ```
 
-**Tier 3 — Component tokens** (deferred — generated per component later)
+---
 
-## Steps
+## Step 3 — Build semantic.json
 
-1. Read `tokens/raw.json`
-2. Build `tokens/system/primitives.json` — named palette + typography + spacing + radius + shadow
-3. Infer semantic roles from usage context in `raw.json` (check `components`, `modes`, `tailwindMapped`) or from perceptual lightness:
-   - Very light → background/surface candidates
-   - Very dark → text/foreground candidates
-   - Mid-range saturated → interactive/accent candidates
-4. Identify ambiguous mode assignments (fewer than 2 data points to confirm a dark-mode value). Collect them and ask the user in a single `AskUserQuestion` call before writing anything.
-5. Write all three output files using confirmed values:
-   - `tokens/system/primitives.json`
-   - `tokens/system/semantic.json`
-   - `tokens/system/tokens.css` — three blocks: primitives in `:root`, light semantic in `:root, [data-theme="light"]`, dark semantic in `[data-theme="dark"]`
-6. **Contrast audit** — before writing any file, check every dark-mode text/background pairing in `semantic.json`:
-   - Resolve each token's dark value to its primitive hex.
-   - For each `text.*` token, identify which `background.*` it is intended to sit on (e.g. `text-on-brand` → `background-brand` or `background-brand-subtle`).
-   - If the background resolves to a dark hex, the text must resolve to a light hex — and vice versa. Flag any pair where both are dark or both are light.
-   - Fix flagged tokens before writing output. A token name like `text-on-brand` encodes _context_, not appearance; its dark-mode value must flip when the surface it sits on flips.
-7. Update `docs/token-conventions.md` with palette tables, semantic token reference, and a decisions/rationale section.
-8. Print a summary table of all semantic tokens with their light/dark resolved hex values.
+Every semantic token needs both light and dark values.
+Values reference primitives using `{group.name.step}` syntax.
 
-## CSS output structure
+```json
+{
+  "surface": {
+    "default":  { "light": "{color.white.100}",  "dark": "{color.black.100}" },
+    "subtle":   { "light": "{color.gray.50}",    "dark": "{color.gray.950}" },
+    "raised":   { "light": "{color.gray.100}",   "dark": "{color.gray.800}" },
+    "elevated": { "light": "{color.gray.200}",   "dark": "{color.gray.700}" }
+  },
+  "content": {
+    "primary":   { "light": "{color.gray.900}",  "dark": "{color.white.100}" },
+    "secondary": { "light": "{color.gray.600}",  "dark": "{color.gray.400}" },
+    "muted":     { "light": "{color.gray.400}",  "dark": "{color.gray.500}" },
+    "accent":    { "light": "{color.slate.500}", "dark": "{color.slate.300}" }
+  },
+  "action": {
+    "primary":       { "light": "{color.slate.500}", "dark": "{color.slate.500}" },
+    "primary-hover": { "light": "{color.slate.300}", "dark": "{color.slate.300}" },
+    "primary-text":  { "light": "{color.white.100}", "dark": "{color.white.100}" }
+  }
+}
+```
+
+Use the actual values from `raw.json` — the above is the structure, not the values.
+Do not invent values. If a light value is missing from raw.json, flag it and ask before proceeding.
+
+---
+
+## Step 4 — WCAG contrast audit
+
+Check every text/surface pairing for both modes.
+
+Required pairs:
+- content/primary on surface/default — both light and dark
+- content/secondary on surface/default — both light and dark
+- content/muted on surface/default — both light and dark (known flag: may fail AA for normal text)
+- action/primary-text on action/primary — both light and dark
+
+Thresholds:
+- Normal text (< 18px regular / < 14px bold): 4.5:1 minimum
+- Large text / UI components: 3:1 minimum
+
+Flag failures. Do not block writing files for known acceptable failures
+(content/muted is documented as large-text/metadata only — 3.94:1 on dark surface is acceptable).
+
+---
+
+## Step 5 — Write tokens.css
+
+Light-first structure. This is the CSS file the app imports.
 
 ```css
-/* Primitives — static, no modes */
+/* ── Primitives — static, no modes ── */
 :root {
-  --primitive-color-brand-500: #hex;
-  --primitive-font-size-base: 1rem;
+  --color-black-100: #000000;
+  --color-white-100: #FFFFFF;
+  --color-gray-950: #0A0A0A;
+  /* ... all primitives ... */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  --radius-full: 9999px;
+  --spacing-1: 4px;
+  --spacing-2: 8px;
+  /* ... */
 }
 
-/* Semantic — light (default) */
+/* ── Semantic — Light (default) ── */
 :root,
 [data-theme="light"] {
-  --color-background-default: var(--primitive-color-neutral-0);
-  --color-text-default: var(--primitive-color-neutral-900);
-  --color-interactive-primary: var(--primitive-color-brand-500);
+  --surface-default: var(--color-white-100);
+  --surface-raised: var(--color-gray-100);
+  --content-primary: var(--color-gray-900);
+  --content-secondary: var(--color-gray-600);
+  --content-muted: var(--color-gray-400);
+  --action-primary: var(--color-slate-500);
+  --action-primary-text: var(--color-white-100);
+  /* ... all semantic light values ... */
 }
 
-/* Semantic — dark */
+/* ── Semantic — Dark (toggle) ── */
 [data-theme="dark"] {
-  --color-background-default: var(--primitive-color-neutral-950);
-  --color-text-default: var(--primitive-color-neutral-50);
-  --color-interactive-primary: var(--primitive-color-brand-700);
+  --surface-default: var(--color-black-100);
+  --surface-raised: var(--color-gray-800);
+  --content-primary: var(--color-white-100);
+  --content-secondary: var(--color-gray-400);
+  --content-muted: var(--color-gray-500);
+  --action-primary: var(--color-slate-500);
+  --action-primary-text: var(--color-white-100);
+  /* ... all semantic dark values ... */
 }
+```
+
+Use actual values from semantic.json — the above is the structure only.
+
+---
+
+## Step 6 — Write token-conventions.md
+
+Include:
+- Primitive → semantic derivation table (every semantic token with its light and dark primitive source)
+- Contrast audit results for both modes
+- Mode strategy: light-first, dark via [data-theme="dark"]
+- content/muted restriction: metadata and large text only, never body copy
+
+---
+
+## Step 7 — Confirm
+
+Print:
+```
+Token system built.
+  Primitive tokens: N
+  Semantic tokens: N (N light values, N dark values)
+  Contrast pairs audited: N
+  Flags: list any
+  Mode strategy: light-first — [data-theme="dark"] for dark mode
+
+Ready for /generate-components
 ```

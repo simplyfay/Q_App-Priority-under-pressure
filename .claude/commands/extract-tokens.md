@@ -1,115 +1,169 @@
-Extract design tokens from a live webpage.
+# /extract-tokens
 
-Usage: /extract-tokens <url>
+Extract all design tokens from the Q Figma file into `tokens/raw.json`.
 
-## Phase 1 — Run extraction script
+**Source:** https://www.figma.com/design/aWwqnVauFDa3e2Yawbk3Af/Q---Priority-under-pressure
+**Output:** `tokens/raw.json`
 
-```bash
-bash .claude/scripts/extract-tokens.sh <url>
+This command reads from Figma only. It does NOT scrape a webpage or curl a URL.
+
+---
+
+## Pre-flight
+
+1. Load the `figma:figma-use` skill — mandatory before any `use_figma` call.
+2. Confirm Figma MCP is connected. If not, stop and tell the user to run:
+   `! claude mcp add --transport http figma http://127.0.0.1:3845/mcp`
+3. Open the Q Figma file using the URL above.
+
+---
+
+## Phase 1 — Inspect (one read call)
+
+Run one inspection call. Report back:
+- All variable collections found: name, mode count, mode names, variable count
+- Text style count
+- Do NOT assume collection names or token counts — log what the file actually contains
+
+Expected but not required:
+- A `Primitives` collection (single mode)
+- A `Tokens(semantic)` or `Design Tokens` collection (two modes: Light and Dark)
+
+If names differ, adapt. Never stop because a name doesn't match expectations.
+
+---
+
+## Phase 2 — Extract Primitives
+
+One `use_figma` call. Read every variable in the Primitives collection.
+
+```js
+const cols = await figma.variables.getLocalVariableCollectionsAsync();
+const prim = cols.find(c => c.name === "Primitives");
+const vars = await figma.variables.getLocalVariablesAsync();
+
+const toHex = c => "#" + [c.r, c.g, c.b]
+  .map(x => Math.round(x * 255).toString(16).padStart(2, "0")).join("").toUpperCase();
+
+const primitives = {};
+const primIdToName = {};
+for (const v of vars) {
+  if (v.variableCollectionId !== prim.id) continue;
+  primIdToName[v.id] = v.name;
+  const modeId = prim.modes[0].modeId;
+  const raw = v.valuesByMode[modeId];
+  primitives[v.name] = (v.resolvedType === "COLOR") ? toHex(raw) : raw;
+}
+return { primitives, primIdToName };
 ```
 
-The script fetches raw HTML and CSS bundles via `curl`, preserving all element `class=` attributes (unlike WebFetch which strips them). It outputs structured sections for each token type.
-
-After the script, if `=== GOOGLE_FONTS ===` shows URLs, fetch them via WebFetch to get the exact font families and weight ranges.
-
-**Determine site type from output:**
-
-- `framework: astro/nextjs` or CSS bundle contains Tailwind utility class rules → **Tailwind site** → Phase 2B
-- `framework: unknown` and CSS bundle contains `--variable-name:` declarations → **Traditional CSS** → Phase 2A
+Group by first path segment: `color`, `spacing`, `radius`, `font`, `shadow`.
 
 ---
 
-## Phase 2A — Traditional CSS site
+## Phase 3 — Extract Semantic tokens (both modes)
 
-Fetch each CSS bundle URL with WebFetch. Parse for:
+One `use_figma` call. Find the semantic collection (may be named `Tokens(semantic)` or `Design Tokens`).
 
-- CSS custom properties (`--variable-name: value`)
-- Color values (hex, rgb, hsl, oklch)
-- `font-family`, `font-size`, `font-weight`, `line-height`
-- `border-radius`, `box-shadow` / `filter: drop-shadow()`
-- Repeated `padding`/`margin`/`gap` values (spacing scale)
+Q has Light and Dark modes. Light is primary — it is the default app experience.
+Dark mode is available as an optional toggle.
 
----
+Use `defaultModeId` as the Light (primary) mode.
+Capture both modes faithfully. Do not invent values for either mode.
 
-## Phase 2B — Tailwind site
+```js
+const dt = cols.find(c =>
+  c.name === "Tokens(semantic)" || c.name === "Design Tokens"
+);
+const lightModeId = dt.defaultModeId;
+const darkMode = dt.modes.find(m => m.modeId !== lightModeId);
+const darkModeId = darkMode ? darkMode.modeId : null;
 
-All color data comes from the script output. No additional fetches needed unless a value is missing.
+async function resolve(val) {
+  if (val && val.type === "VARIABLE_ALIAS") {
+    const target = await figma.variables.getVariableByIdAsync(val.id);
+    const tCol = cols.find(c => c.id === target.variableCollectionId);
+    const tVal = target.valuesByMode[tCol.modes[0].modeId];
+    return { primitive: target.name, hex: toHex(tVal) };
+  }
+  return { primitive: null, hex: toHex(val) };
+}
 
-**Interactive element colors:**
+const semantic = {};
+for (const v of vars) {
+  if (v.variableCollectionId !== dt.id) continue;
+  semantic[v.name] = {
+    light: await resolve(v.valuesByMode[lightModeId]),
+    dark: darkModeId ? await resolve(v.valuesByMode[darkModeId]) : null,
+  };
+}
+return semantic;
+```
 
-- `BG_CLASSES_ON_BUTTONS_AND_ANCHORS` → primary/secondary CTA backgrounds
-- `TEXT_CLASSES_ON_BUTTONS_AND_ANCHORS` → button text colors
-- `FULL_CTA_TAGS` → complete class strings; confirms gradient, shape, hover states
-
-**Color resolution — CSS bundle is the source of truth:**
-
-- Class found in `CSS_BUNDLE_CUSTOM_COLORS` → use the rgb/hex value from the bundle (may differ from standard Tailwind defaults; the bundle wins)
-- Class NOT in the bundle → use standard Tailwind v3 values:
-  - slate: 900→#0f172a, 800→#1e293b, 700→#334155, 500→#64748b, 300→#cbd5e1, 200→#e2e8f0
-  - white→#ffffff, black→#000000, red-500→#ef4444, blue-600→#2563eb
-
-**Heading colors:** default black (light) / white (dark) unless a color class appears on h1/h2.
-
----
-
-## Phase 3 — Visual fallback
-
-**Only run if Phase 2B found fewer than 3 non-neutral brand colors.**
-
-Fetch `/features/`, `/products/`, or `/platform/` to find CDN image URLs (Cloudinary, imgix, HubSpot CDN). Priority: UI/product screenshots > OG image > hero backgrounds.
-
-Fetch each image with WebFetch. If the response says the file is binary/saved to disk, use the `Read` tool on that path — Claude reads images directly.
-
-In screenshots: filled pill/rectangular buttons = primary color. Avatar/icon fills ≠ button backgrounds.
+Group by first path segment: `surface`, `content`, `line`, `action`, `state`, `ambient`.
 
 ---
 
-## Phase 4 — Write `tokens/raw.json`
+## Phase 4 — Extract component tokens and text styles
+
+**Component tokens:** if a third collection exists, read it the same way.
+If not, derive component entries from semantic tokens:
+```
+buttonPrimary.background    → action/primary
+buttonPrimary.textColor     → action/primary-text
+buttonPrimary.borderRadius  → radius/md
+card.background             → surface/raised
+card.radius                 → radius/xl
+input.background            → surface/raised
+input.borderRadius          → radius/md
+```
+Mark these with `"extractedFrom": "figma-semantic"`.
+
+**Text styles:**
+```js
+const styles = await figma.getLocalTextStylesAsync();
+return styles.map(s => ({
+  name: s.name,
+  family: s.fontName.family,
+  weight: s.fontName.style,
+  size: s.fontSize,
+  lineHeight: s.lineHeight,
+  letterSpacing: s.letterSpacing,
+}));
+```
+
+---
+
+## Phase 5 — Write tokens/raw.json
 
 ```json
 {
-  "source": "<url>",
+  "source": "https://www.figma.com/design/aWwqnVauFDa3e2Yawbk3Af/Q---Priority-under-pressure",
   "extractedAt": "<ISO timestamp>",
-  "techStack": "Astro + Tailwind CSS | etc.",
-  "extractionMethod": "compiled-tailwind | css-custom-properties | mixed",
+  "extractionMethod": "figma-variables",
+  "modeStrategy": "light-first — light is default, dark is optional toggle",
   "colors": {
-    "raw": ["#hex", "..."],
-    "cssVars": {},
-    "tailwindCustom": { "color-name-scale": "#hex" },
-    "tailwindMapped": { "bg-class": "#hex" }
-  },
-  "typography": {
-    "fontFamilies": [],
-    "fontSizes": [],
-    "fontWeights": [],
-    "lineHeights": [],
-    "cssVars": {}
-  },
-  "components": {
-    "buttonPrimary": {
-      "background": "",
-      "textColor": "",
-      "borderRadius": "",
-      "extractedFrom": "curl class attr | css bundle | visual"
+    "primitives": {},
+    "semantic": {
+      "light": {},
+      "dark": {}
     }
   },
-  "spacing": { "raw": [] },
-  "radii": [],
-  "shadows": [],
-  "effects": {},
-  "modes": { "light": {}, "dark": {} },
-  "notes": ""
+  "typography": {
+    "fontFamilies": ["DM Sans", "DM Mono"],
+    "textStyles": []
+  },
+  "spacing": {},
+  "radius": {},
+  "shadow": {},
+  "components": {}
 }
 ```
 
-Always populate `components.buttonPrimary.extractedFrom` noting which method found the value.
-
 ---
 
-## Phase 5 — Print summary
+## Phase 6 — Print summary
 
-Table of found values grouped by category, then flag:
-
-- Custom Tailwind colors that differ from standard defaults
-- Any values still missing (font sizes, spacing scale)
-- Colors within 5% perceptual distance that may collapse to one token
+Report actual counts found per collection and per group.
+Flag any variable that failed to resolve (dangling alias).
+Flag any token where light and dark values are identical (may be intentional, but worth noting).
