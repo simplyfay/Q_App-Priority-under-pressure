@@ -2,161 +2,100 @@
 ## Claude Code Project Context
 
 This file is read automatically at the start of every Claude Code session.
-Do not skip or summarise it. Read it fully before executing any command.
+Read it fully before executing any command.
 
 ---
 
-## What this product is
+## Goal
 
-Q is an AI-powered triage tool for overwhelmed knowledge workers.
-It activates at the moment of overwhelm — when the plan has failed and decision fatigue has set in.
-Q surfaces one clear, justified next action and steps back when the user regains clarity.
-
-**Core tagline:** "Most days, you've got this. On the days you don't, Q does."
-
----
-
-## The persona
-
-**Jordan** — Account Manager, 4 years experience, SaaS company, 80-person team.
-Manages 18 client accounts. Day fragmented by Slack, email, calls, internal requests.
-Tools: Asana, Notion, Slack, Google Calendar, sticky notes.
-Goal: end every day knowing the most important work got done — not just whatever felt urgent.
-Voice: "I know what needs to get done. I just can't always figure out what to start with when things get hectic."
-
-The persona's name is Jordan throughout. Not Fay. Not "the user." Jordan.
+Build a complete, portfolio-ready React web app for Q — an AI-powered triage tool
+for overwhelmed knowledge workers. The token system, components, and screen designs
+live in the Q Figma file. Claude Code reads from that file, builds the app, and
+publishes the result back to Figma.
 
 ---
 
-## The four system states — these are the product
+## Workflow
 
-Every screen, every component, every interaction maps to one of these states.
-Do not invent states. Do not add states. Do not rename states.
-
-### DETECT
-Behavioural signals (rapid task switching, idle time, interruption count) trigger a quiet offer to help.
-No manual activation. Q comes to Jordan.
-Entry point: floating pill — "Q has a suggestion."
-Copy names the signal, not a mood: "You've switched tasks 4 times in 20 minutes."
-Two exits only: Accept / Dismiss.
-
-### ACTIVATE
-Q runs a context-aware recalculation using four weighted signals (see below).
-Surfaces ONE task. Not three. Not a ranked list. One.
-'Why' leads 'what': rationale tags appear ABOVE the task title.
-Copy that earns trust: "12 other tasks are waiting. They can."
-Primary: Start task. Secondary: View all tasks.
-
-### FOCUS
-Focus protection mode. Task list eliminated — active design decision, not simplification.
-Notifications held — visible as a count, not surfaced.
-Progress bar with calm copy: "Great progress. Keep going."
-Exit always accessible, never prominent.
-This is the quietest screen in Q. It should feel like it disappears.
-
-### DISRUPT + REORIENT
-Triggered when an interruption arrives during Focus.
-Current task remains visible, dimmed behind the prompt.
-Q has already recalculated BEFORE the prompt appears.
-Exact copy: "Q has recalculated. Your current task is still the priority." (or "...priority has shifted.")
-Binary: "Continue current task" / "Switch to new priority."
-Jordan always makes the final call.
-
-### CLEAR (bonus state)
-No action required. Q has stepped back.
-Copy: "You're clear. Nothing needs you right now."
-Maximum whitespace. The absence of UI is the message.
-
-### AMBIENT (companion state)
-Always-on passive view. Under 10 seconds to read.
-Quiet signal: load level, task count, free time, what's building.
-Copy: "Your day looks manageable." / "Things are building."
-Q is present but not directing.
+1. **Extract** — read the Q Figma file and extract all variables (primitives → semantic → component) into `tokens/raw.json`
+2. **Build** — verify the token derivation chain, run contrast audit, output structured CSS and JSON
+3. **Generate** — scaffold React components from the token system and Figma component structures
+4. **Preview** — run the full Q web app locally at http://localhost:5173
+5. **Publish** — push the built token system and components back to the Q Figma file
 
 ---
 
-## The four priority signals (used in ACTIVATE recalculation)
+## Figma File
 
-| Signal | Source | What it measures |
-|--------|--------|-----------------|
-| Deadline proximity | Calendar, task tools | How soon is this due vs remaining hours today? |
-| Source authority | Email, Slack | Who is requesting? Manager > client > peer > automated |
-| Task age | Task tools, email timestamps | How long has this been waiting? Stale = more urgent |
-| Calendar pressure | Calendar | How many free hours remain? Less time = tighter triage |
+Single source of truth for tokens, components, navigation, and screen designs.
 
----
+**Q — Priority Under Pressure:**
+https://www.figma.com/design/aWwqnVauFDa3e2Yawbk3Af/Q---Priority-under-pressure
 
-## Design principles — enforce these in every component
+This is both the read source (extract tokens and screen designs from it)
+and the write destination (push the built system back to it).
 
-### Confident Ally
-Q is a trusted colleague who has assessed the situation and arrives with one clear recommendation.
-Not a list. Not an alarm. Not a dashboard.
-This principle governs copy, colour, and interaction design.
-
-### No warning colours
-Do not use red, orange, or amber for urgency signals anywhere in Q.
-Urgency is communicated through copy and hierarchy, not colour panic.
-Q communicates confidence, not alarm.
-
-### No gamification
-No streaks. No points. No celebration animations. No confetti.
-Progress copy is calm: "Great progress. Keep going." — not "🎉 Amazing!"
-
-### One thing at a time
-Hick's Law: decision time increases with the number and complexity of choices.
-More options at peak overload add load, not help.
-In Activate: one task. In Reorient: two buttons. In Focus: one title.
-
-### Transparent reasoning
-Jordan understands why before committing.
-Rationale tags are not decorative — they are the reason Jordan trusts Q.
+The Linear Design System file is no longer referenced — do not use it.
 
 ---
 
-## Design token system
+## Commands
 
-Source of truth: `variables.css` in the project root.
-All colours, typography, spacing, radius, and semantic values live there.
-Do NOT hardcode any hex values, font sizes, or spacing values in components.
-Always reference CSS custom properties: `var(--token-name)`.
-
-### Token hierarchy
-Primitives → Semantic → Component
-Example derivation chain:
-`#457B9D` → `--color-slate-500` → `--action-primary` → button background
-
-### Emotional register in tokens
-- `--ambient-*` tokens: calm, low-load states
-- `--state-focus` / `--color-navy-*`: deep focus, active triage
-- `--action-primary` (`#457B9D`): the one accent colour — used sparingly
+| Command | What it does |
+|---------|-------------|
+| `/extract-tokens` | Read the Q Figma file and extract all variables — primitives, semantic, component — into `tokens/raw.json` |
+| `/build-token-system` | Verify derivation chain, run WCAG contrast audit, output `tokens/system/` files |
+| `/generate-components` | Scaffold React components from token system and Figma component structures |
+| `/build-web-app` | Build the full Q React app across all nine screens |
+| `/push-to-figma` | Publish token system and components back to the Q Figma file |
 
 ---
 
-## Figma file
+## Stack
 
-URL: `https://www.figma.com/design/aWwqnVauFDa3e2Yawbk3Af/Test`
-Page: `Test` (node-id `0-1`)
-When pushing to Figma: derive all values from `tokens/system/tokens.json`.
-Never re-read `variables.css` directly at push time — the JSON is the verified source.
-
----
-
-## What is deliberately out of scope (do not build)
-
-- Onboarding / OAuth integrations (Phase 2)
-- Settings and preference configuration (Phase 2)
-- Post-triage reflection (Phase 2)
-- Team / collaborative features (Phase 2)
-- Mobile app (architecture ready, deferred pending desktop validation)
-- Mood detection of any kind (rejected in problem framing — Q detects behaviour, not emotion)
+- **App**: Vite + React
+- **Styling**: CSS custom properties only — no Tailwind, no MUI, no Chakra
+- **Fonts**: DM Sans (body copy) + DM Mono (labels, metadata, system copy) via Google Fonts
+- **Navigation**: React useState — no router library needed
+- **Tokens**: JSON → CSS custom properties
+- **Figma**: figma-use skill (load before every use_figma call)
 
 ---
 
-## Guardrails for every session
+## Persona
 
-1. Read this file before running any command.
-2. All token values must trace back to `variables.css`. No invented values.
-3. The persona is Jordan. Not "the user." Not Fay.
-4. The product is Q. Screens are system states. States are: Detect, Activate, Focus, Reorient, Clear, Ambient.
-5. Copy follows the Confident Ally register: calm, direct, one recommendation.
-6. If a command conflicts with this file, flag the conflict before proceeding.
+**Sam Roy** — Account Manager, @sam.roy, avatar initial "S"
+Test credentials: sam.roy@email.com / sam
+Never use "Jordan" or "Fay" anywhere in the codebase.
+
+---
+
+## Token Naming Convention
+
+Figma variables use slash separators: `radius/sm`, `color/gray/800`, `spacing/1`
+CSS custom properties use double-dash + hyphens: `--radius-sm`, `--color-gray-800`
+No double dashes in Figma. No slashes in CSS.
+
+Full conventions: `tokens/system/token-conventions.md` (generated by `/build-token-system`)
+
+---
+
+## Design Principles
+
+- **Confident Ally**: one clear recommendation, never a list or alarm
+- **No warning colours**: urgency through copy and hierarchy, never red/orange/amber
+- **No gamification**: no streaks, confetti, or celebration animations
+- **One thing at a time**: Activate = one task, Reorient = two buttons, Focus = one title
+- **Minimalism over ambition**: functionality first, broken ambitious design rejected
+
+---
+
+## Guardrails
+
+1. Load figma-use skill before every use_figma call — mandatory
+2. Read this file and SESSION-SUMMARY.md before running any command
+3. All token values must trace back to a primitive — no invented values
+4. No hardcoded hex values anywhere in the codebase
+5. Sam Roy is the persona — search for "Jordan" after every build and replace
+6. If a command conflicts with SESSION-SUMMARY.md, flag the conflict before proceeding
+7. Prioritise functionality and minimalism over ambitious but broken design
